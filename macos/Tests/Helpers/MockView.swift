@@ -1,5 +1,7 @@
 import AppKit
 
+// @preconcurrency suppresses Sendable errors from Codable on NSView
+// but the Swift compiler still complains about it.
 class MockView: NSView, @preconcurrency Codable, Identifiable {
     let id: UUID
 
