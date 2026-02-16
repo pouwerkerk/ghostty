@@ -201,78 +201,37 @@ struct SplitTreeTests {
 
     // MARK: - Resizing
 
-    /// resizing a view will change its ratio appropriately
-    @Test func resizingAdjustsRatio() throws {
-        let (tree, view1, _) = try makeHorizontalSplit()
-
-        // initial container is 1000px wide, each view is 1/2 width, or 0.5 * 1000
-        // resize view1's split boundary 100px to the right
-        let bounds = CGRect(x: 0, y: 0, width: 1000, height: 500)
-        let resized = try tree.resizing(node: .leaf(view: view1), by: 100, in: .right, with: bounds)
-
-        // new ratio: (500px + 100px) / 1000px = 0.6
-        guard case .split(let s) = resized.root else {
-            Issue.record("unexpected node type")
-            return
-        }
-        #expect(abs(s.ratio - 0.6) < 0.001)
-    }
-
-    /// resizing left views will change its ratio appropriately
-    @Test func resizingLeftAdjustsRatio() throws {
-        let (tree, view1, _) = try makeHorizontalSplit()
-
-        // initial container is 1000px wide, each view is 1/2 width, or 0.5 * 1000
-        // resize view1's split boundary 50px to the left
-        let bounds = CGRect(x: 0, y: 0, width: 1000, height: 500)
-        let resized = try tree.resizing(node: .leaf(view: view1), by: 50, in: .left, with: bounds)
-
-        // new ratio: (500px - 50px) / 1000px = 0.45
-        guard case .split(let s) = resized.root else {
-            Issue.record("unexpected node type")
-            return
-        }
-        #expect(abs(s.ratio - 0.45) < 0.001)
-    }
-
-    /// resizing vertical views will change its ratio appropriately
-    @Test func resizingVerticallyAdjustsRatio() throws {
+    /// resizing a view in each direction adjusts ratio appropriately
+    @Test(arguments: [
+        // (resizeDirection, insertDirection, bounds, pixels, expectedRatio)
+        (SplitTree<MockView>.Spatial.Direction.right, SplitTree<MockView>.NewDirection.right,
+         CGRect(x: 0, y: 0, width: 1000, height: 500), UInt16(100), 0.6),
+        (.left, .right,
+         CGRect(x: 0, y: 0, width: 1000, height: 500), UInt16(50), 0.45),
+        (.down, .down,
+         CGRect(x: 0, y: 0, width: 500, height: 1000), UInt16(200), 0.7),
+        (.up, .down,
+         CGRect(x: 0, y: 0, width: 500, height: 1000), UInt16(50), 0.45),
+    ])
+    func resizingAdjustsRatio(
+        resizeDirection: SplitTree<MockView>.Spatial.Direction,
+        insertDirection: SplitTree<MockView>.NewDirection,
+        bounds: CGRect,
+        pixels: UInt16,
+        expectedRatio: Double
+    ) throws {
         let view1 = MockView()
         let view2 = MockView()
         var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .down)
+        tree = try tree.inserting(view: view2, at: view1, direction: insertDirection)
 
-        // initial container is 1000px tall, each view is 1/2 width, or 0.5 * 1000
-        // resize view1's split boundary 200px downward
-        let bounds = CGRect(x: 0, y: 0, width: 500, height: 1000)
-        let resized = try tree.resizing(node: .leaf(view: view1), by: 200, in: .down, with: bounds)
+        let resized = try tree.resizing(node: .leaf(view: view1), by: pixels, in: resizeDirection, with: bounds)
 
-        // new ratio: (500px + 200px) / 1000px = 0.7
         guard case .split(let s) = resized.root else {
             Issue.record("unexpected node type")
             return
         }
-        #expect(abs(s.ratio - 0.7) < 0.001)
-    }
-
-    /// resizing up views will change its ratio appropriately
-    @Test func resizingUpAdjustsRatio() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .down)
-
-        // initial container is 1000px tall, each view is 1/2 width, or 0.5 * 1000
-        // resize view1's split boundary 100px upward
-        let bounds = CGRect(x: 0, y: 0, width: 500, height: 1000)
-        let resized = try tree.resizing(node: .leaf(view: view1), by: 50, in: .up, with: bounds)
-
-        // new ratio: (500px - 50px) / 1000px = 0.45
-        guard case .split(let s) = resized.root else {
-            Issue.record("unexpected node type")
-            return
-        }
-        #expect(abs(s.ratio - 0.45) < 0.001)
+        #expect(abs(s.ratio - expectedRatio) < 0.001)
     }
 
     // MARK: - Codable
@@ -504,50 +463,29 @@ struct SplitTreeTests {
 
     // MARK: - Spatial
 
-    /// doesBorder returns true when a node touches the left edge
-    @Test func doesBorderLeftEdge() throws {
-        let (tree, view1, view2) = try makeHorizontalSplit()
-
-        // view1 touches the left edge, view2 does not
-        let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
-        #expect(spatial.doesBorder(side: .left, from: .leaf(view: view1)))
-        #expect(!spatial.doesBorder(side: .left, from: .leaf(view: view2)))
-    }
-
-    /// doesBorder returns true when a node touches the right edge
-    @Test func doesBorderRightEdge() throws {
-        let (tree, view1, view2) = try makeHorizontalSplit()
-
-        // view1 touches the right edge, view2 does not
-        let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
-        #expect(spatial.doesBorder(side: .right, from: .leaf(view: view2)))
-        #expect(!spatial.doesBorder(side: .right, from: .leaf(view: view1)))
-    }
-
-    /// doesBorder returns true when a node touches the top edge
-    @Test func doesBorderTopEdge() throws {
+    /// doesBorder returns true when a node touches the edge in its split direction
+    @Test(arguments: [
+        (SplitTree<MockView>.Spatial.Direction.left, SplitTree<MockView>.NewDirection.right),
+        (.right, .right),
+        (.up, .down),
+        (.down, .down),
+    ])
+    func doesBorderEdge(
+        side: SplitTree<MockView>.Spatial.Direction,
+        insertDirection: SplitTree<MockView>.NewDirection
+    ) throws {
         let view1 = MockView()
         let view2 = MockView()
         var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .down)
+        tree = try tree.inserting(view: view2, at: view1, direction: insertDirection)
 
-        // view1 touches the top edge, view2 does not
         let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
-        #expect(spatial.doesBorder(side: .up, from: .leaf(view: view1)))
-        #expect(!spatial.doesBorder(side: .up, from: .leaf(view: view2)))
-    }
 
-    /// doesBorder returns true when a node touches the bottom edge
-    @Test func doesBorderBottomEdge() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .down)
-
-        // view1 touches the bottom edge, view2 does not
-        let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
-        #expect(spatial.doesBorder(side: .down, from: .leaf(view: view2)))
-        #expect(!spatial.doesBorder(side: .down, from: .leaf(view: view1)))
+        // view1 borders left/up; view2 borders right/down
+        let (borderView, nonBorderView): (MockView, MockView) =
+            (side == .right || side == .down) ? (view2, view1) : (view1, view2)
+        #expect(spatial.doesBorder(side: side, from: .leaf(view: borderView)))
+        #expect(!spatial.doesBorder(side: side, from: .leaf(view: nonBorderView)))
     }
 
     // MARK: - Calculate View Bounds
@@ -666,52 +604,30 @@ struct SplitTreeTests {
         #expect(b4 == CGRect(x: 500, y: 0, width: 500, height: 400))   // bottom-right
     }
 
-    /// slots should return nodes to the right, sorted by distance
-    @Test func slotsRightFromNode() throws {
-        let (tree, view1, view2) = try makeHorizontalSplit()
-
-        let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
-        let slots = spatial.slots(in: .right, from: .leaf(view: view1))
-        #expect(slots.count == 1)
-        #expect(slots[0].node == .leaf(view: view2))
-    }
-
-    /// slots should return nodes to the left, sorted by distance
-    @Test func slotsLeftFromNode() throws {
-        let (tree, view1, view2) = try makeHorizontalSplit()
-
-        let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
-        let slots = spatial.slots(in: .left, from: .leaf(view: view2))
-        #expect(slots.count == 1)
-        #expect(slots[0].node == .leaf(view: view1))
-    }
-
-    /// slots should return nodes below, sorted by distance
-    @Test func slotsDownFromNode() throws {
+    /// slots should return the adjacent node in each direction
+    @Test(arguments: [
+        (SplitTree<MockView>.Spatial.Direction.right, SplitTree<MockView>.NewDirection.right),
+        (.left, .right),
+        (.down, .down),
+        (.up, .down),
+    ])
+    func slotsFromNode(
+        direction: SplitTree<MockView>.Spatial.Direction,
+        insertDirection: SplitTree<MockView>.NewDirection
+    ) throws {
         let view1 = MockView()
         let view2 = MockView()
         var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .down)
+        tree = try tree.inserting(view: view2, at: view1, direction: insertDirection)
 
-        // use a 1000x500 container to test the spatial representation
         let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
-        let slots = spatial.slots(in: .down, from: .leaf(view: view1))
-        #expect(slots.count == 1)
-        #expect(slots[0].node == .leaf(view: view2))
-    }
 
-    /// slots should return nodes above, sorted by distance
-    @Test func slotsUpFromNode() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .down)
-
-        // use a 1000x500 container to test the spatial representation
-        let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
-        let slots = spatial.slots(in: .up, from: .leaf(view: view2))
+        // look from view1 toward view2 for right/down, from view2 toward view1 for left/up
+        let (fromView, expectedView): (MockView, MockView) =
+            (direction == .right || direction == .down) ? (view1, view2) : (view2, view1)
+        let slots = spatial.slots(in: direction, from: .leaf(view: fromView))
         #expect(slots.count == 1)
-        #expect(slots[0].node == .leaf(view: view1))
+        #expect(slots[0].node == .leaf(view: expectedView))
     }
 
     /// slots in 2x2 grid: from top-left, right and down include the expected leaf nodes
