@@ -3,6 +3,15 @@ import Testing
 @testable import Ghostty
 
 struct SplitTreeTests {
+    /// Creates a two-view horizontal split tree (view1 | view2).
+    private func makeHorizontalSplit() throws -> (SplitTree<MockView>, MockView, MockView) {
+        let view1 = MockView()
+        let view2 = MockView()
+        var tree = SplitTree<MockView>(view: view1)
+        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        return (tree, view1, view2)
+    }
+
     // MARK: - Empty and Non-Empty
 
     /// An empty tree is empty.
@@ -27,10 +36,7 @@ struct SplitTreeTests {
 
     /// A tree with an inserted view is split.
     @Test func isSplit() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, _, _) = try makeHorizontalSplit()
         #expect(tree.isSplit)
     }
 
@@ -52,10 +58,7 @@ struct SplitTreeTests {
 
     /// Finding a view in a tree returns the view.
     @Test func findsInsertedView() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, _) = try makeHorizontalSplit()
         #expect((tree.find(id: view1.id) != nil))
     }
 
@@ -69,10 +72,7 @@ struct SplitTreeTests {
 
     /// A tree with an inserted view contains that view.
     @Test func treeContainsInsertedView() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, _, view2) = try makeHorizontalSplit()
         #expect(tree.contains(.leaf(view: view2)))
     }
 
@@ -88,10 +88,7 @@ struct SplitTreeTests {
 
     /// A tree with a removed view does not contain that view.
     @Test func treeDoesNotContainRemovedView() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        var (tree, view1, view2) = try makeHorizontalSplit()
         tree = tree.removing(.leaf(view: view1))
         #expect(!tree.contains(.leaf(view: view1)))
         #expect(tree.contains(.leaf(view: view2)))
@@ -123,10 +120,7 @@ struct SplitTreeTests {
 
     /// Replacing a view with itself should work
     @Test func replacingViewWithItselfShouldBeAValidOperation() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, view2) = try makeHorizontalSplit()
         let result = try tree.replacing(node: .leaf(view: view2), with: .leaf(view: view2))
         #expect(result.contains(.leaf(view: view1)))
         #expect(result.contains(.leaf(view: view2)))
@@ -144,11 +138,7 @@ struct SplitTreeTests {
 
     /// focusTarget should find the next view to focus based on the current focused node and direction
     @Test func focusTargetShouldFindNextFocusedNode() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
-
+        let (tree, view1, view2) = try makeHorizontalSplit()
         let target = tree.focusTarget(for: .next, from: .leaf(view: view1))
         #expect(target === view2)
     }
@@ -164,33 +154,21 @@ struct SplitTreeTests {
 
     /// focusTarget should handle the case when there's no next view by wrapping
     @Test func focusTargetShouldHandleWrappingForNextNode() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
-
+        let (tree, view1, view2) = try makeHorizontalSplit()
         let target = tree.focusTarget(for: .next, from: .leaf(view: view2))
         #expect(target === view1)
     }
 
     /// focusTarget should find the previous view to focus based on the current focused node and direction
     @Test func focusTargetShouldFindPreviousFocusedNode() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
-
+        let (tree, view1, view2) = try makeHorizontalSplit()
         let target = tree.focusTarget(for: .previous, from: .leaf(view: view2))
         #expect(target === view1)
     }
 
     /// focusTarget with spatial direction should navigate to the adjacent view
     @Test func focusTargetShouldFindSpatialFocusedNode() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
-
+        let (tree, view1, view2) = try makeHorizontalSplit()
         let target = tree.focusTarget(for: .spatial(.left), from: .leaf(view: view2))
         #expect(target === view1)
     }
@@ -225,10 +203,7 @@ struct SplitTreeTests {
 
     /// resizing a view will change its ratio appropriately
     @Test func resizingAdjustsRatio() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, _) = try makeHorizontalSplit()
 
         // initial container is 1000px wide, each view is 1/2 width, or 0.5 * 1000
         // resize view1's split boundary 100px to the right
@@ -245,10 +220,7 @@ struct SplitTreeTests {
 
     /// resizing left views will change its ratio appropriately
     @Test func resizingLeftAdjustsRatio() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, _) = try makeHorizontalSplit()
 
         // initial container is 1000px wide, each view is 1/2 width, or 0.5 * 1000
         // resize view1's split boundary 50px to the left
@@ -307,11 +279,7 @@ struct SplitTreeTests {
 
     /// trees can be encoded and decoded and preserve structure
     @Test func encodingAndDecodingPreservesTree() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
-
+        let (tree, view1, view2) = try makeHorizontalSplit()
         let data = try JSONEncoder().encode(tree)
         let decoded = try JSONDecoder().decode(SplitTree<MockView>.self, from: data)
         #expect(decoded.find(id: view1.id) != nil)
@@ -321,10 +289,7 @@ struct SplitTreeTests {
 
     /// encoding and decoding preserves zoomed path
     @Test func encodingAndDecodingPreservesZoomedPath() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, _, view2) = try makeHorizontalSplit()
         let treeWithZoomed = SplitTree<MockView>(root: tree.root, zoomed: .leaf(view: view2))
 
         let data = try JSONEncoder().encode(treeWithZoomed)
@@ -385,20 +350,13 @@ struct SplitTreeTests {
 
     /// structuralIdentity of a tree should be equal to its own identity
     @Test func structuralIdentityIsReflexive() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
-
+        let (tree, _, _) = try makeHorizontalSplit()
         #expect(tree.structuralIdentity == tree.structuralIdentity)
     }
 
     /// resizing a tree should not change structuralIdentity
     @Test func structuralIdentityComparesShapeNotRatio() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, _) = try makeHorizontalSplit()
 
         // resized trees have the same structure
         let bounds = CGRect(x: 0, y: 0, width: 1000, height: 500)
@@ -421,16 +379,10 @@ struct SplitTreeTests {
 
     /// different views in the same shape have different structuralIdentity
     @Test func structuralIdentityIdentifiesDifferentOrdersShapes() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, _, _) = try makeHorizontalSplit()
 
         // same organization of views, but different ones are not structurally equal
-        let view3 = MockView()
-        let view4 = MockView()
-        var otherTree = SplitTree<MockView>(view: view3)
-        otherTree = try otherTree.inserting(view: view4, at: view3, direction: .right)
+        let (otherTree, _, _) = try makeHorizontalSplit()
         #expect(tree.structuralIdentity != otherTree.structuralIdentity)
     }
 
@@ -503,11 +455,8 @@ struct SplitTreeTests {
 
     /// node finds both leaves in a split tree
     @Test func nodeFindsLeavesInSplitTree() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
+        let (tree, view1, view2) = try makeHorizontalSplit()
 
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
         #expect(tree.root?.node(view: view1) == .leaf(view: view1))
         #expect(tree.root?.node(view: view2) == .leaf(view: view2))
     }
@@ -523,10 +472,7 @@ struct SplitTreeTests {
 
     /// node resizing updates a split node's ratio
     @Test func resizingUpdatesRatio() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, _, _) = try makeHorizontalSplit()
 
         guard case .split(let s) = tree.root else {
             Issue.record("unexpected node type")
@@ -560,10 +506,7 @@ struct SplitTreeTests {
 
     /// doesBorder returns true when a node touches the left edge
     @Test func doesBorderLeftEdge() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, view2) = try makeHorizontalSplit()
 
         // view1 touches the left edge, view2 does not
         let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
@@ -573,10 +516,7 @@ struct SplitTreeTests {
 
     /// doesBorder returns true when a node touches the right edge
     @Test func doesBorderRightEdge() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, view2) = try makeHorizontalSplit()
 
         // view1 touches the right edge, view2 does not
         let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
@@ -632,10 +572,7 @@ struct SplitTreeTests {
 
     /// calculateViewBounds splits horizontally by ratio
     @Test func calculatesViewBoundsHorizontalSplit() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, view2) = try makeHorizontalSplit()
 
         guard let root = tree.root else {
             Issue.record("expected non-empty tree")
@@ -680,10 +617,7 @@ struct SplitTreeTests {
 
     /// calculateViewBounds respects custom split ratio
     @Test func calculateViewBoundsCustomRatio() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, view2) = try makeHorizontalSplit()
 
         guard case .split(let s) = tree.root else {
             Issue.record("unexpected node type")
@@ -734,12 +668,8 @@ struct SplitTreeTests {
 
     /// slots should return nodes to the right, sorted by distance
     @Test func slotsRightFromNode() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, view2) = try makeHorizontalSplit()
 
-        // use a 1000x500 container to test the spatial representation
         let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
         let slots = spatial.slots(in: .right, from: .leaf(view: view1))
         #expect(slots.count == 1)
@@ -748,12 +678,8 @@ struct SplitTreeTests {
 
     /// slots should return nodes to the left, sorted by distance
     @Test func slotsLeftFromNode() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, view2) = try makeHorizontalSplit()
 
-        // use a 1000x500 container to test the spatial representation
         let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
         let slots = spatial.slots(in: .left, from: .leaf(view: view2))
         #expect(slots.count == 1)
@@ -825,12 +751,8 @@ struct SplitTreeTests {
 
     /// slots should return empty when there are no nodes in that direction
     @Test func slotsReturnsEmptyWhenNoNodesInDirection() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, view1, view2) = try makeHorizontalSplit()
 
-        // use a 1000x500 container to test the spatial representation
         let spatial = tree.root!.spatial(within: CGSize(width: 1000, height: 500))
         #expect(spatial.slots(in: .left, from: .leaf(view: view1)).isEmpty)
         #expect(spatial.slots(in: .right, from: .leaf(view: view2)).isEmpty)
@@ -840,10 +762,7 @@ struct SplitTreeTests {
 
     /// a StructuralIdentity can be used in a Set
     @Test func structuralIdentityInSet() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, _, _) = try makeHorizontalSplit()
 
         // create a set of structural identities and add the tree's identity to it
         var seen: Set<SplitTree<MockView>.StructuralIdentity> = []
@@ -871,10 +790,7 @@ struct SplitTreeTests {
 
     /// StructuralIdentity works as Dictionary key
     @Test func structuralIdentityAsDictionaryKey() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, _, _) = try makeHorizontalSplit()
 
         // create a dictionary of structural identities and add the tree's identity to it
         var cache: [SplitTree<MockView>.StructuralIdentity: String] = [:]
@@ -884,14 +800,13 @@ struct SplitTreeTests {
 
     /// Node.StructuralIdentity can be used in a Set
     @Test func nodeStructuralIdentityInSet() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, _, _) = try makeHorizontalSplit()
+
         guard case .split(let s) = tree.root else {
             Issue.record("unexpected node type")
             return
         }
+
         var nodeIds: Set<SplitTree<MockView>.Node.StructuralIdentity> = []
         nodeIds.insert(tree.root!.structuralIdentity)
         nodeIds.insert(s.left.structuralIdentity)
@@ -901,14 +816,13 @@ struct SplitTreeTests {
 
     /// Node.StructuralIdentity distinguishes different leaf nodes
     @Test func nodeStructuralIdentityDistinguishesLeaves() throws {
-        let view1 = MockView()
-        let view2 = MockView()
-        var tree = SplitTree<MockView>(view: view1)
-        tree = try tree.inserting(view: view2, at: view1, direction: .right)
+        let (tree, _, _) = try makeHorizontalSplit()
+
         guard case .split(let s) = tree.root else {
             Issue.record("unexpected node type")
             return
         }
+
         var nodeIds: Set<SplitTree<MockView>.Node.StructuralIdentity> = []
         nodeIds.insert(s.left.structuralIdentity)
         nodeIds.insert(s.right.structuralIdentity)
