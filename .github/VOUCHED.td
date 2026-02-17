@@ -19,6 +19,22 @@
 # discussion by the author. Maintainers can denounce users by commenting
 # "!denounce" or "!denounce [username]" on a discussion.
 bernsno
+bkircher
+daiimus
+doprz
+elias8
+hakonhagland
+hqnna
+jake-stewart
 jcollie
+juniqlim
+marrocco-simone
 mitchellh
 pluiedev
+pouwerkerk
+priyans-hu
+prsweet
+qwerasd205
+rmunn
+tweedbeetle
+yamshta
